@@ -2,35 +2,23 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import binned_statistic_2d
+from matplotlib.colors import LogNorm
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 
 # Load the processed data
 processed_dir = "data/processed/"
 pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
 
-# Also process OSD if you want to compare
-# osd_table = nc_convert(osd_data_og, processed_dir + "OSD_preprocessed.csv")
-# osd_table = pd.read_csv(processed_dir + "OSD_preprocessed.csv")
 
-
-def plot_observation_heatmap(df, title="Observation Density", figsize=(12, 8), bins=100):
+def plot_observation_heatmap_map(df, title="Observation Density", figsize=(16, 10), bins=100, use_log=True):
     """
-    Create a heatmap showing spatial distribution of observations.
-    
-    Parameters:
-    -----------
-    df : pd.DataFrame
-        DataFrame with 'lat' and 'lon' columns
-    title : str
-        Plot title
-    figsize : tuple
-        Figure size
-    bins : int or tuple
-        Number of bins for the heatmap (can be single int or (x_bins, y_bins))
+    Create a heatmap overlaid on a geographic map.
     """
     # Remove NaN values
     df_clean = df.dropna(subset=['lat', 'lon'])
     
-    # Get lat/lon ranges from your search criteria
+    # Get lat/lon ranges
     lon_range = [-97.5480, -4.7344]
     lat_range = [-14.0801, 54.1231]
     
@@ -44,46 +32,76 @@ def plot_observation_heatmap(df, title="Observation Density", figsize=(12, 8), b
         range=[lon_range, lat_range]
     )
     
-    # Create figure
-    fig, ax = plt.subplots(figsize=figsize)
+    # Replace zeros with NaN
+    counts[counts == 0] = np.nan
+    
+    # Create figure with map projection
+    fig = plt.figure(figsize=figsize)
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+    # Set extent to your data range
+    ax.set_extent([lon_range[0], lon_range[1], lat_range[0], lat_range[1]], crs=ccrs.PlateCarree())
+    
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='lightgray', edgecolor='black', linewidth=0.5)
+    ax.add_feature(cfeature.OCEAN, facecolor='lightblue', alpha=0.3)
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+    ax.add_feature(cfeature.BORDERS, linestyle=':', linewidth=0.5, alpha=0.5)
+    ax.add_feature(cfeature.LAKES, facecolor='lightblue', edgecolor='black', linewidth=0.3, alpha=0.5)
+    ax.add_feature(cfeature.RIVERS, edgecolor='blue', linewidth=0.3, alpha=0.5)
+    
+    # Add gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+    
+    # Choose normalization
+    if use_log:
+        norm = LogNorm(vmin=np.nanmin(counts), vmax=np.nanmax(counts))
+        cmap = 'hot'
+    else:
+        vmax = np.nanpercentile(counts, 95)
+        norm = None
+        cmap = 'hot'
     
     # Plot heatmap
     im = ax.imshow(
         counts.T, 
         origin='lower',
         extent=[lon_range[0], lon_range[1], lat_range[0], lat_range[1]],
-        aspect='auto',
-        cmap='hot',
-        interpolation='nearest'
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        interpolation='bilinear',
+        norm=norm if use_log else None,
+        vmax=None if use_log else vmax,
+        alpha=0.7  # Make semi-transparent so we can see the map underneath
     )
     
     # Add colorbar
-    cbar = plt.colorbar(im, ax=ax, label='Number of Observations')
+    cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05, shrink=0.8)
+    cbar.set_label('Number of Observations (log scale)' if use_log else 'Number of Observations', fontsize=11)
     
-    # Labels and title
-    ax.set_xlabel('Longitude', fontsize=12)
-    ax.set_ylabel('Latitude', fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Add grid
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+    # Title
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
     
     # Add statistics text
     stats_text = f"Total observations: {len(df_clean):,}\n"
-    stats_text += f"Unique casts: {df_clean['castIndex'].nunique():,}"
+    stats_text += f"Unique casts: {df_clean['castIndex'].nunique():,}\n"
+    stats_text += f"Max density: {np.nanmax(counts):.0f}"
     ax.text(0.02, 0.98, stats_text, 
             transform=ax.transAxes,
             verticalalignment='top',
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
-            fontsize=10)
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black'),
+            fontsize=10,
+            zorder=10)
     
     plt.tight_layout()
-    return fig, ax
+    return fig, ax, counts
 
 
-def plot_cast_heatmap(df, title="Cast Density", figsize=(12, 8), bins=100):
+def plot_cast_heatmap_map(df, title="Cast Density", figsize=(16, 10), bins=100, use_log=True):
     """
-    Create a heatmap showing spatial distribution of unique casts (not individual observations).
+    Create a cast density heatmap overlaid on a geographic map.
     """
     # Get one row per cast
     df_casts = df.groupby('castIndex').first().reset_index()
@@ -103,75 +121,155 @@ def plot_cast_heatmap(df, title="Cast Density", figsize=(12, 8), bins=100):
         range=[lon_range, lat_range]
     )
     
-    # Create figure
-    fig, ax = plt.subplots(figsize=figsize)
+    # Replace zeros with NaN
+    counts[counts == 0] = np.nan
+    
+    # Create figure with map projection
+    fig = plt.figure(figsize=figsize)
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+    # Set extent
+    ax.set_extent([lon_range[0], lon_range[1], lat_range[0], lat_range[1]], crs=ccrs.PlateCarree())
+    
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='wheat', edgecolor='black', linewidth=0.5)
+    ax.add_feature(cfeature.OCEAN, facecolor='lightblue', alpha=0.3)
+    ax.add_feature(cfeature.COASTLINE, linewidth=0.8)
+    ax.add_feature(cfeature.BORDERS, linestyle=':', linewidth=0.5, alpha=0.5)
+    ax.add_feature(cfeature.LAKES, facecolor='lightblue', edgecolor='black', linewidth=0.3, alpha=0.5)
+    
+    # Add gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+    
+    # Choose normalization
+    if use_log:
+        norm = LogNorm(vmin=np.nanmin(counts), vmax=np.nanmax(counts))
+        cmap = 'YlOrRd'
+    else:
+        vmax = np.nanpercentile(counts, 95)
+        norm = None
+        cmap = 'YlOrRd'
     
     # Plot heatmap
     im = ax.imshow(
         counts.T, 
         origin='lower',
         extent=[lon_range[0], lon_range[1], lat_range[0], lat_range[1]],
-        aspect='auto',
-        cmap='YlOrRd',
-        interpolation='nearest'
+        transform=ccrs.PlateCarree(),
+        cmap=cmap,
+        interpolation='bilinear',
+        norm=norm if use_log else None,
+        vmax=None if use_log else vmax,
+        alpha=0.7
     )
     
     # Add colorbar
-    cbar = plt.colorbar(im, ax=ax, label='Number of Casts')
+    cbar = plt.colorbar(im, ax=ax, orientation='horizontal', pad=0.05, shrink=0.8)
+    cbar.set_label('Number of Casts (log scale)' if use_log else 'Number of Casts', fontsize=11)
     
-    # Labels and title
-    ax.set_xlabel('Longitude', fontsize=12)
-    ax.set_ylabel('Latitude', fontsize=12)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    
-    # Add grid
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+    # Title
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
     
     # Add statistics
-    stats_text = f"Total casts: {len(df_casts):,}"
+    stats_text = f"Total casts: {len(df_casts):,}\n"
+    stats_text += f"Max density: {np.nanmax(counts):.0f}"
     ax.text(0.02, 0.98, stats_text, 
             transform=ax.transAxes,
             verticalalignment='top',
-            bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
-            fontsize=10)
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black'),
+            fontsize=10,
+            zorder=10)
+    
+    plt.tight_layout()
+    return fig, ax, counts
+
+
+def plot_scatter_map(df, title="Observation Locations", figsize=(16, 10), alpha=0.3, s=1):
+    """
+    Scatter plot on map with coastlines.
+    """
+    df_clean = df.dropna(subset=['lat', 'lon'])
+    
+    # Get lat/lon ranges
+    lon_range = [-97.5480, -4.7344]
+    lat_range = [-14.0801, 54.1231]
+    
+    # Create figure with map projection
+    fig = plt.figure(figsize=figsize)
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+    # Set extent
+    ax.set_extent([lon_range[0], lon_range[1], lat_range[0], lat_range[1]], crs=ccrs.PlateCarree())
+    
+    # Add map features
+    ax.add_feature(cfeature.LAND, facecolor='lightgray', edgecolor='black', linewidth=0.5)
+    ax.add_feature(cfeature.OCEAN, facecolor='white')
+    ax.add_feature(cfeature.COASTLINE, linewidth=1)
+    ax.add_feature(cfeature.BORDERS, linestyle=':', linewidth=0.5, alpha=0.7)
+    
+    # Add gridlines
+    gl = ax.gridlines(draw_labels=True, linewidth=0.5, alpha=0.5, linestyle='--')
+    gl.top_labels = False
+    gl.right_labels = False
+    
+    # Scatter plot
+    scatter = ax.scatter(
+        df_clean['lon'], 
+        df_clean['lat'], 
+        s=s, 
+        alpha=alpha, 
+        c='red',
+        edgecolors='none',
+        transform=ccrs.PlateCarree()
+    )
+    
+    # Title
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
+    
+    # Statistics
+    stats_text = f"Total observations: {len(df_clean):,}"
+    ax.text(0.02, 0.98, stats_text, 
+            transform=ax.transAxes,
+            verticalalignment='top',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black'),
+            fontsize=10,
+            zorder=10)
     
     plt.tight_layout()
     return fig, ax
 
 
-# Create visualizations for PFL
-print("Creating PFL observation heatmap...")
-fig1, ax1 = plot_observation_heatmap(pfl_table, title="PFL: Observation Density", bins=150)
-plt.savefig(processed_dir + "PFL_observation_heatmap.png", dpi=300, bbox_inches='tight')
+# Create map-based visualizations
+print("Creating PFL observation heatmap on map...")
+fig1, ax1, counts1 = plot_observation_heatmap_map(
+    pfl_table, 
+    title="PFL: Observation Density on Map (Log Scale)", 
+    bins=100,
+    use_log=True
+)
+plt.savefig(processed_dir + "PFL_observation_map.png", dpi=300, bbox_inches='tight')
 plt.show()
 
-print("Creating PFL cast heatmap...")
-fig2, ax2 = plot_cast_heatmap(pfl_table, title="PFL: Cast Density", bins=150)
-plt.savefig(processed_dir + "PFL_cast_heatmap.png", dpi=300, bbox_inches='tight')
+print("Creating PFL cast heatmap on map...")
+fig2, ax2, counts2 = plot_cast_heatmap_map(
+    pfl_table, 
+    title="PFL: Cast Density on Map (Log Scale)", 
+    bins=100,
+    use_log=True
+)
+plt.savefig(processed_dir + "PFL_cast_map.png", dpi=300, bbox_inches='tight')
 plt.show()
 
+print("Creating PFL scatter plot on map...")
+fig3, ax3 = plot_scatter_map(
+    pfl_table, 
+    title="PFL: All Observation Locations",
+    alpha=0.1,
+    s=0.5
+)
+plt.savefig(processed_dir + "PFL_scatter_map.png", dpi=300, bbox_inches='tight')
+plt.show()
 
-# If you also have OSD data, create comparison plots
-# print("Creating OSD observation heatmap...")
-# fig3, ax3 = plot_observation_heatmap(osd_table, title="OSD: Observation Density", bins=150)
-# plt.savefig(processed_dir + "OSD_observation_heatmap.png", dpi=300, bbox_inches='tight')
-# plt.show()
-
-# print("Creating OSD cast heatmap...")
-# fig4, ax4 = plot_cast_heatmap(osd_table, title="OSD: Cast Density", bins=150)
-# plt.savefig(processed_dir + "OSD_cast_heatmap.png", dpi=300, bbox_inches='tight')
-# plt.show()
-
-
-# Create side-by-side comparison if you have both datasets
-# fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-# # ... add comparison plots
-
-
-# Print summary statistics
-print("\n=== PFL Summary Statistics ===")
-print(f"Total observations: {len(pfl_table):,}")
-print(f"Total casts: {pfl_table['castIndex'].nunique():,}")
-print(f"Lat range: [{pfl_table['lat'].min():.2f}, {pfl_table['lat'].max():.2f}]")
-print(f"Lon range: [{pfl_table['lon'].min():.2f}, {pfl_table['lon'].max():.2f}]")
-print(f"\nObservations per cast (avg): {len(pfl_table) / pfl_table['castIndex'].nunique():.1f}")
+print("\n=== Done! ===")
