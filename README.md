@@ -1,8 +1,8 @@
-# Latent ODE Modeling of Sparse Oceanographic Contaminant Transport
+# Latent ODE Modeling of Sparse Oceanographic Sensor Data
 
 ## Overview
 
-This project applies **Latent Neural Ordinary Differential Equations (Latent ODEs)** to model sparse, irregularly sampled oceanographic data. The objective is to learn continuous-time latent dynamics governing contaminant-related and biogeochemical variables (e.g., PFAS/PFOS proxies, dissolved oxygen, temperature–salinity structure) from ship-based observational datasets.
+This project applies Latent Neural Ordinary Differential Equations (Latent ODEs) to model sparse, irregularly sampled oceanographic data. The objective is to learn continuous-time latent dynamics governing contaminant-related and biogeochemical variables (e.g., PFAS/PFOS proxies, dissolved oxygen, temperature–salinity structure) from ship-based observational datasets.
 
 Oceanographic measurements are typically:
 
@@ -10,13 +10,13 @@ Oceanographic measurements are typically:
 - Spatially sparse across large domains  
 - Heterogeneous across casts and cruises  
 
-Latent ODEs provide a principled framework for continuous-time modeling under these constraints.
+Latent ODEs provide a framework for modeling continuous-time dynamics under these constraints.
 
 ---
 
 ## Motivation
 
-Classical numerical ocean models (e.g., PDE-based solvers) require dense spatial grids and strong physical parameterization. In contrast, many contaminant datasets consist of sparse vertical profiles collected over limited time windows.
+Classical numerical ocean models require dense spatial grids and strong physical parameterization. Many contaminant datasets instead consist of sparse vertical profiles collected over limited time windows.
 
 This project investigates whether:
 
@@ -30,22 +30,22 @@ This project investigates whether:
 
 The model follows the Latent ODE framework:
 
-1. **Encoder**  
-   Maps irregularly sampled observations to an inferred latent initial state \( z_0 \)
+1. Encoder  
+   Maps irregularly sampled observations to an inferred latent initial state z0
 
-2. **Neural ODE**  
-   Evolves latent state via  
-   \[
-   \frac{dz}{dt} = f_\theta(z, t)
-   \]  
-   where \( f_\theta \) is a neural network
+2. Neural ODE  
+   Evolves the latent state according to:
 
-3. **Decoder**  
-   Maps latent trajectory back to observed variables
+   dz/dt = f_theta(z, t)
 
-Training is performed using a variational objective (ELBO) with reconstruction and KL terms.
+   where f_theta is a neural network.
 
-Irregular sampling is handled directly through the ODE solver.
+3. Decoder  
+   Maps the latent trajectory back to observed variables.
+
+Training uses a variational objective (ELBO) with reconstruction and KL divergence terms.
+
+Irregular sampling is handled directly by the ODE solver.
 
 ---
 
@@ -63,7 +63,7 @@ Preprocessing includes:
 - Converting ragged cast structures into pointwise tabular format  
 - Group-aware train/validation/test splits (by cast index)  
 - Normalization using training statistics only  
-- Depth alignment and optional binning  
+- Optional depth alignment or binning  
 
 ---
 
@@ -84,4 +84,21 @@ Baselines may include:
 
 ---
 
-## Repository Structure
+## Technologies
+
+- Python  
+- PyTorch  
+- torchdiffeq  
+- xarray / pandas / NumPy  
+
+---
+
+## Status
+
+Active research and development. Ongoing experimentation with latent dimension size, solver choice, and training stability.
+
+---
+
+## Course Context
+
+Developed as part of an Applied Machine Learning course project integrating continuous-time neural dynamics with real-world scientific data.
