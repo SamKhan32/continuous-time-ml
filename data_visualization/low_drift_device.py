@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 
 processed_dir = "data/processed/"
-visualization_dir = "data_visualization/new_visualizations"
+visualization_dir = "data_visualization/new_visualizations/"
 
-drift_df = pd.read_csv(processed_dir + "device_drift_statistics.csv")
-pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
+drift_df = pd.read_csv(processed_dir + "PFL1_device_drift_statistics.csv")
+pfl_table = pd.read_csv(processed_dir + "PFL1_preprocessed.csv")
 
 print("=== UNDERSTANDING YOUR DATA DISTRIBUTION ===\n")
 
@@ -104,15 +104,3 @@ print(f"  Low-drift covers {(low_drift_casts['lat'].max()-low_drift_casts['lat']
 print(f"  Low-drift covers {(low_drift_casts['lon'].max()-low_drift_casts['lon'].min())/(all_casts['lon'].max()-all_casts['lon'].min())*100:.1f}% of lon range")
 
 print("\n" + "="*60 + "\n")
-
-# Recommendation
-print("=== RECOMMENDATION ===\n")
-print("You have 75% of observations from 50 devices. This is actually GOOD if:")
-print("1. Your ML task is learning T-S-P-O2 relationships (physical oceanography)")
-print("2. You care more about data quality (low drift) than device diversity")
-print("3. The 50 devices still cover your region of interest spatially")
-print("\nConsider relaxing to 100-150 km if:")
-print("1. You need better spatial coverage")
-print("2. You're doing spatial interpolation/mapping")
-print("3. You want to capture regional differences")
-print("\nCurrent setup (50 km, 5 casts) is probably FINE for most ML applications!")

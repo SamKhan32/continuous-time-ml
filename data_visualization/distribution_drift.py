@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 processed_dir = "data/processed/"
-visualization_dir = "data_visualization/new_visualizations"
+visualization_dir = "data_visualization/new_visualizations/"
 drift_df = pd.read_csv(processed_dir + "device_drift_statistics.csv")
 
 # Let's examine the distribution more carefully

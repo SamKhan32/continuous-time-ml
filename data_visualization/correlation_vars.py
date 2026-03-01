@@ -5,7 +5,7 @@ import seaborn as sns
 from scipy.stats import pearsonr, spearmanr
 
 processed_dir = "data/processed/"
-visualization_dir = "data_visualization/new_visualizations"
+visualization_dir = "data_visualization/new_visualizations/"
 
 drift_df = pd.read_csv(processed_dir + "device_drift_statistics.csv")
 pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
@@ -166,10 +166,10 @@ for idx, var in enumerate(available_vars[:6]):  # First 6 variables
     
     ax.grid(alpha=0.3)
 
-plt.savefig(processed_dir + "variable_depth_correlations.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "variable_depth_correlations.png", dpi=300, bbox_inches='tight')
 plt.show()
 
-print("Visualization saved to: " + processed_dir + "variable_depth_correlations.png")
+print("Visualization saved to: " + visualization_dir + "variable_depth_correlations.png")
 
 # Additional analysis: Depth-stratified statistics
 print("\n=== DEPTH-STRATIFIED ANALYSIS ===\n")
@@ -268,5 +268,5 @@ plt.tight_layout()
 plt.savefig(visualization_dir + "vertical_profiles.png", dpi=300, bbox_inches='tight')
 plt.show()
 
-print("Vertical profiles saved to: " + processed_dir + "vertical_profiles.png")
+print("Vertical profiles saved to: " + visualization_dir + "vertical_profiles.png")
 print("\n=== Analysis Complete! ===")

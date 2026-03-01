@@ -3,10 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 processed_dir = "data/processed/"
-visualization_dir = "data_visualization/new_visualizations"
+visualization_dir = "data_visualization/new_visualizations/"
 
 drift_df = pd.read_csv(processed_dir + "device_drift_statistics.csv")
-pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
+pfl_table = pd.read_csv(processed_dir + "PFL1_preprocessed.csv")
 
 # Filter to low-drift devices
 low_drift_devices = drift_df[
@@ -201,22 +201,4 @@ plt.tight_layout()
 plt.savefig(visualization_dir + "profile_density_analysis.png", dpi=300, bbox_inches='tight')
 plt.show()
 
-print("\n=== RECOMMENDATIONS FOR NEURAL ODE ===\n")
 
-print("The peaked distribution suggests many sparse profiles mixed with some very dense ones.")
-print("\n✓ RECOMMENDED APPROACH:")
-print("  1. Filter to profiles with ≥20-30 observations")
-print("     • Neural ODEs need dense sampling to learn continuous dynamics")
-print("     • Sparse profiles (5-10 obs) won't capture vertical structure well")
-print("  2. This will likely keep 60-80% of your data (see plot above)")
-print("  3. The remaining profiles will have better depth resolution")
-print("\n⚠ TRADE-OFF:")
-print("  • Fewer total casts, but each cast is more informative")
-print("  • Better for learning vertical dynamics")
-print("  • May lose some spatial coverage")
-
-print("\n📊 SUGGESTED NEXT STEP:")
-print("  Run: min_obs = 25  # Sweet spot between density and data retention")
-print("  This typically keeps ~70% of data with much better profile quality")
-
-print("\n" + "="*60)

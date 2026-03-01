@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 processed_dir = "data/processed/"
 visualization_dir = "data_visualization/new_visualizations"
 
-drift_df = pd.read_csv(processed_dir + "device_drift_statistics.csv")
-pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
+drift_df = pd.read_csv(processed_dir + "PFL1_device_drift_statistics.csv")
+pfl_table = pd.read_csv(processed_dir + "PFL1_preprocessed.csv")
 
 # Filter to low-drift devices
 low_drift_devices = drift_df[
@@ -209,8 +209,8 @@ ax.legend()
 ax.grid(alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(processed_dir + "neural_ode_data_quality.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "neural_ode_data_quality.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 print("=== Analysis complete! ===")
-print(f"Visualization saved to: {processed_dir}neural_ode_data_quality.png")
+print(f"Visualization saved to: {visualization_dir}neural_ode_data_quality.png")

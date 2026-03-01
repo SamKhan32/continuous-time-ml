@@ -9,9 +9,9 @@ import matplotlib.patheffects as path_effects
 
 # Load the processed data
 processed_dir = "data/processed/"
-visualization_dir = "data_visualization/new_visualizations"
+visualization_dir = "data_visualization/new_visualizations/"
 
-pfl_table = pd.read_csv(processed_dir + "PFL_preprocessed.csv")
+pfl_table = pd.read_csv(processed_dir + "PFL1_preprocessed.csv")
 
 
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):
@@ -300,7 +300,7 @@ drift_df = calculate_device_drift(pfl_table)
 print(f"Total devices with 2+ casts: {len(drift_df)}")
 
 # Save drift statistics
-drift_df.to_csv(processed_dir + "device_drift_statistics.csv", index=False)
+drift_df.to_csv(processed_dir + "PFL1_device_drift_statistics.csv", index=False)
 print(f"Saved drift statistics to {processed_dir}device_drift_statistics.csv")
 
 # Print summary statistics
@@ -317,28 +317,28 @@ print(f"Number of low-drift devices: {len(low_drift_devices)}")
 print(f"Percentage of total: {len(low_drift_devices)/len(drift_df)*100:.1f}%")
 
 # Save low drift device list
-low_drift_devices.to_csv(processed_dir + "low_drift_devices.csv", index=False)
+low_drift_devices.to_csv(processed_dir + "PFL1_low_drift_devices.csv", index=False)
 
 # Create visualizations
 print("\nCreating drift histograms...")
 fig1 = plot_drift_histogram(drift_df)
-plt.savefig(processed_dir + "drift_histograms.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "drift_histograms.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 print("Creating drift vs casts scatter plot...")
 fig2 = plot_drift_vs_casts_scatter(drift_df)
-plt.savefig(processed_dir + "drift_vs_casts.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "drift_vs_casts.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 print("Plotting trajectories of 20 lowest-drift devices (GEODESIC)...")
 fig3 = plot_device_trajectories(pfl_table, drift_df, n_devices=20, use_geodesic=True)
-plt.savefig(processed_dir + "low_drift_trajectories_geodesic.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "low_drift_trajectories_geodesic.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 print("Plotting trajectories of 20 highest-drift devices (GEODESIC)...")
 fig4 = plot_device_trajectories(pfl_table, drift_df.nlargest(20, 'avg_distance_per_cast_km'), 
                                 n_devices=20, use_geodesic=True)
-plt.savefig(processed_dir + "high_drift_trajectories_geodesic.png", dpi=300, bbox_inches='tight')
+plt.savefig(visualization_dir + "high_drift_trajectories_geodesic.png", dpi=300, bbox_inches='tight')
 plt.show()
 
 print("\n=== Done! ===")
