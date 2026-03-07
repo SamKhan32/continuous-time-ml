@@ -1,28 +1,20 @@
-# Latent ODE Modeling of Sparse Oceanographic Sensor Data
+# Latent ODE Modeling of Oceanographic Float Data
 
 ## Overview
 
-This project applies Latent Neural Ordinary Differential Equations (Latent ODEs) to model sparse, irregularly sampled oceanographic data. The objective is to learn continuous-time latent dynamics governing contaminant-related and biogeochemical variables (e.g., PFAS/PFOS proxies, dissolved oxygen, temperature–salinity structure) from ship-based observational datasets.
-
-Oceanographic measurements are typically:
-
-- Irregularly sampled in time and depth  
-- Spatially sparse across large domains  
-- Heterogeneous across casts and cruises  
-
-Latent ODEs provide a framework for modeling continuous-time dynamics under these constraints.
+This project applies Latent Neural Ordinary Differential Equations (Latent ODEs) to oceanographic profiling float data (Argo). The model learns continuous-time latent dynamics from sparse, irregularly sampled vertical ocean profiles, with the goal of reconstructing observed variables and — critically — generalizing to unseen variables via a swappable decoder head.
 
 ---
 
 ## Motivation
 
-Classical numerical ocean models require dense spatial grids and strong physical parameterization. Many contaminant datasets instead consist of sparse vertical profiles collected over limited time windows.
+Oceanographic float data presents a core challenge for standard deep learning: profiles are irregularly spaced in time, sparse across the water column, and heterogeneous across cruises and regions. Classical numerical ocean models address this with dense grids and strong physical assumptions that may not hold for complex or poorly characterized variables.
 
-This project investigates whether:
+This project investigates whether a learned latent dynamical system can:
 
-- A learned latent dynamical system can capture underlying transport structure  
-- Continuous-time neural dynamics improve generalization under irregular sampling  
-- Latent space evolution provides a compact representation of contaminant behavior  
+- Capture the underlying continuous-time structure of ocean profiles
+- Reconstruct observed variables from a compact latent representation
+- Generalize to variables unseen during training by swapping the decoder head
 
 ---
 
@@ -30,75 +22,73 @@ This project investigates whether:
 
 The model follows the Latent ODE framework:
 
-1. Encoder  
-   Maps irregularly sampled observations to an inferred latent initial state z0
+1. **Encoder**
+   Maps irregularly sampled Argo float profiles to a distribution over latent initial states z₀ via a variational encoder.
 
-2. Neural ODE  
-   Evolves the latent state according to:
+2. **Neural ODE**
+   Evolves the latent state forward in continuous time:
 
-   dz/dt = f_theta(z, t)
+   ```
+   dz/dt = f_θ(z, t)
+   ```
 
-   where f_theta is a neural network.
+   where f_θ is a neural network. Irregular sampling is handled natively by the ODE solver.
 
-3. Decoder  
-   Maps the latent trajectory back to observed variables.
+3. **Decoder**
+   Maps the latent trajectory back to observed variables. The decoder is designed to be swappable — after training, a new decoder head can be attached and trained to reconstruct variables not seen during the original training phase.
 
 Training uses a variational objective (ELBO) with reconstruction and KL divergence terms.
 
-Irregular sampling is handled directly by the ODE solver.
+---
+
+## Research Questions
+
+- Can a Latent ODE learn physically meaningful dynamics from sparse Argo profiles?
+- Does the latent space generalize — i.e., can a new decoder head reconstruct unseen ocean variables from the pre-trained latent trajectory?
+- How does model performance vary with latent dimension size, ODE network depth, and solver choice?
 
 ---
 
 ## Data
 
-The dataset consists of ship-based oceanographic casts containing:
-
-- Depth-resolved measurements  
-- Temperature and salinity  
-- Dissolved oxygen and/or contaminant-relevant variables  
-- Sparse temporal and spatial coverage  
+- **Source:** Argo profiling float dataset
+- **Variables:** Temperature, salinity, dissolved oxygen, and additional biogeochemical tracers (where available)
+- **Structure:** Depth-resolved vertical profiles, irregularly sampled in time and space
 
 Preprocessing includes:
 
-- Converting ragged cast structures into pointwise tabular format  
-- Group-aware train/validation/test splits (by cast index)  
-- Normalization using training statistics only  
-- Optional depth alignment or binning  
+- Converting ragged profile structures into pointwise tabular format
+- Group-aware train/validation/test splits by cast/profile index
+- Normalization using training statistics only
 
 ---
 
 ## Experiments
 
-Experiments evaluate:
+- Reconstruction accuracy on held-out profiles
+- Latent trajectory smoothness and stability
+- Decoder transfer: training a new head to reconstruct unseen variables from frozen latent dynamics
+- Sensitivity analysis over latent dimension and ODE depth
 
-- Reconstruction accuracy under irregular sampling  
-- Latent trajectory smoothness and stability  
-- Generalization to unseen casts  
-- Sensitivity to latent dimension and ODE network depth  
-
-Baselines may include:
-
-- Discrete-time RNN/GRU models  
-- Static feedforward regressors  
-- Classical interpolation approaches  
+Baselines include discrete-time RNN/GRU models and classical interpolation approaches.
 
 ---
 
 ## Technologies
 
-- Python  
-- PyTorch  
-- torchdiffeq  
-- xarray / pandas / NumPy  
+- Python
+- PyTorch
+- torchdiffeq
+- xarray / pandas / NumPy
 
 ---
 
 ## Status
 
-Active research and development. Ongoing experimentation with latent dimension size, solver choice, and training stability.
+Active development. Ongoing experimentation with latent dimensionality, solver selection, training stability, and decoder transfer.
 
 ---
 
-## Course Context
+## Acknowledgments
 
-Developed as part of an Applied Machine Learning course project integrating continuous-time neural dynamics with real-world scientific data.
+Developed under the mentorship of Dr. Xuyang Li, Assistant Professor, College of Engineering, UNC Charlotte. Supported by the Office of Undergraduate Research.

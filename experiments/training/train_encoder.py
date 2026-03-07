@@ -1,14 +1,120 @@
-#castIndex,wod_unique_cast,date,GMT_time,lat,lon,WMO_ID,z,Temperature,Salinity,Oxygen,Pressure,Chlorophyll,Nitrate,pH
-from models.architectures.autoencoder import AE
-from torch import nn, optim
+import os
 import torch
-model= AE()
-loss_function = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-8)
+import torch.nn as nn
+from torch.utils.data import DataLoader
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+from configs.config1 import (
+    ENCODER_LR, ENCODER_EPOCHS, BATCH_SIZE,
+    LOW_DRIFT_PATH, PFL1_PATH,
+)
+from data.split import build_splits
+from data.datasets import ArgoProfileDataset
+from models.architectures.autoencoder import Autoencoder
 
-def train_autoencoder(lr, cast_array, epochs):
-    for iter in range(0, epochs):
-        
+
+## Loss ##
+
+def masked_mse(recon, target, mask):
+    """MSE computed only over valid (non-missing) observations."""
+    mask = mask.float()
+    loss = ((recon - target) ** 2 * mask).sum() / mask.sum().clamp(min=1)
+    return loss
+
+
+## Collate ##
+## Pads variable-length depth sequences within a batch
+
+def collate_fn(batch):
+    max_depth = max(item["profile"].shape[0] for item in batch)
+    n_vars    = batch[0]["profile"].shape[1]
+
+    profiles = torch.zeros(len(batch), max_depth, n_vars)
+    masks    = torch.zeros(len(batch), max_depth, n_vars, dtype=torch.bool)
+
+    for i, item in enumerate(batch):
+        d = item["profile"].shape[0]
+        profiles[i, :d] = item["profile"]
+        masks[i, :d]    = item["mask"]
+
+    return {
+        "profile": profiles,
+        "mask":    masks,
+        "lat":     torch.stack([item["lat"]    for item in batch]),
+        "lon":     torch.stack([item["lon"]    for item in batch]),
+        "t":       torch.stack([item["t"]      for item in batch]),
+        "wmo_id":  [item["wmo_id"]  for item in batch],
+        "cast_id": [item["cast_id"] for item in batch],
+    }
+
+
+## Training loop ##
+
+def train_encoder(checkpoint_dir="checkpoints", checkpoint_name="autoencoder_best.pt"):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    # --- data ---
+    df, split_map = build_splits(LOW_DRIFT_PATH, PFL1_PATH)
+
+    train_ds = ArgoProfileDataset(df, split="train")
+    val_ds   = ArgoProfileDataset(df, split="test", stats=train_ds.stats)
+
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,  collate_fn=collate_fn)
+    val_loader   = DataLoader(val_ds,   batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
+
+    # --- model ---
+    model     = Autoencoder().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=ENCODER_LR)
+
+    # --- training ---
+    best_val_loss = float("inf")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    checkpoint_path = os.path.join(checkpoint_dir, checkpoint_name)
+
+    for epoch in range(1, ENCODER_EPOCHS + 1):
+
+        ## train ##
+        model.train()
+        train_loss = 0.0
+        for batch in train_loader:
+            profile = batch["profile"].to(device)
+            mask    = batch["mask"].to(device)
+
+            recon, p = model(profile, mask)
+            loss     = masked_mse(recon, profile, mask)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            train_loss += loss.item()
+
+        train_loss /= len(train_loader)
+
+        ## validate ##
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for batch in val_loader:
+                profile = batch["profile"].to(device)
+                mask    = batch["mask"].to(device)
+                recon, _ = model(profile, mask)
+                val_loss += masked_mse(recon, profile, mask).item()
+
+        val_loss /= len(val_loader)
+
+        print(f"Epoch {epoch:3d}/{ENCODER_EPOCHS}  train={train_loss:.4f}  val={val_loss:.4f}")
+
+        ## checkpoint ##
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            model.save(checkpoint_path, stats=train_ds.stats)
+            print(f"  -> saved best checkpoint (val={best_val_loss:.4f})")
+
+    print(f"\nTraining complete. Best val loss: {best_val_loss:.4f}")
+    print(f"Checkpoint saved to: {checkpoint_path}")
+    return checkpoint_path
+
+
+if __name__ == "__main__":
+    train_encoder()
